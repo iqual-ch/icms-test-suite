@@ -75,7 +75,7 @@ trait IcmsSkipTrait {
   }
 
   /**
-   * Accepts both `key => reason` and bare `key` list entries.
+   * Falls back to a placeholder when an entry carries no reason string.
    */
   private function formatSkipReason(mixed $reason): string {
     return is_string($reason) && $reason !== '' ? $reason : 'no reason given';

@@ -51,10 +51,21 @@ abstract class IcmsBundleContractTestBase extends IcmsBundleExistingSiteBase {
   }
 
   /**
+   * Values for the bundle's own required fields the suite cannot generate.
+   *
+   * Required plain text and taxonomy fields are filled automatically; a
+   * bundle requiring anything else (a date, an address, a nested paragraph)
+   * provides it here — a missing value fails the test, it never skips.
+   */
+  protected function getNodeValues(): array {
+    return [];
+  }
+
+  /**
    * A published node of the bundle is exposed through GraphQL like Nuxt sees it.
    */
   public function testNodeIsExposedThroughGraphql(): void {
-    $node = $this->createIcmsNode(['type' => $this->getNodeType()]);
+    $node = $this->createIcmsNode(['type' => $this->getNodeType()] + $this->getNodeValues());
     $data = $this->graphqlQuery(<<<'GQL'
 query nodeByUuid($uuid: String!) {
   entityByUuid(entityType: NODE, uuid: $uuid) {

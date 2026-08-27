@@ -18,4 +18,21 @@ class IcmsBundleLocationTest extends IcmsBundleContractTestBase {
 
   protected const ICMS_BUNDLE = 'location';
 
+  /**
+   * {@inheritdoc}
+   *
+   * A location requires an address and coordinates.
+   */
+  protected function getNodeValues(): array {
+    return [
+      'field_icms_address' => [
+        'country_code' => 'CH',
+        'address_line1' => 'Bahnhofstrasse 1',
+        'postal_code' => '8001',
+        'locality' => 'Zürich',
+      ],
+      'field_icms_coordinates' => ['lat' => 47.3769, 'lng' => 8.5417],
+    ];
+  }
+
 }

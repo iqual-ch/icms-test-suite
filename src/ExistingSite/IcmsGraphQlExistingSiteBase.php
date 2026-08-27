@@ -80,6 +80,24 @@ abstract class IcmsGraphQlExistingSiteBase extends IcmsExistingSiteBase {
   }
 
   /**
+   * Asserts that a query result carries at least the expected cache metadata.
+   *
+   * The customization-proof variant of assertResultMetadata(): additional
+   * contexts and tags a project's modules add are fine, but the result must
+   * stay cacheable and must not lose the tags and contexts the frontend's
+   * caching contract relies on.
+   */
+  protected function assertResultMetadataContains(ExecutionResult $result, CacheableMetadata $expected): void {
+    $this->assertNotSame(0, $result->getCacheMaxAge(), 'The result is cacheable.');
+
+    $missingContexts = array_diff($expected->getCacheContexts(), $result->getCacheContexts());
+    $this->assertEmpty($missingContexts, 'Missing cache contexts: ' . implode(', ', $missingContexts));
+
+    $missingTags = array_diff($expected->getCacheTags(), $result->getCacheTags());
+    $this->assertEmpty($missingTags, 'Missing cache tags: ' . implode(', ', $missingTags));
+  }
+
+  /**
    * {@inheritdoc}
    */
   protected function defaultCacheMaxAge() {

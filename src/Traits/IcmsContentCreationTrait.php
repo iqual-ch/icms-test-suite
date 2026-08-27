@@ -137,27 +137,46 @@ trait IcmsContentCreationTrait {
   /**
    * Skips the test when an entity built from the suite defaults is invalid.
    *
-   * Typically a project-specific required field; the message names it and
-   * the setting that provides its value.
+   * A violation on a project-added field (Domain Access, a custom required
+   * field) skips the test and names the setting that provides the value. A
+   * violation on a product field (`field_icms_*`) is a gap in the suite — the
+   * test creating the entity has to supply the value — and fails instead, so
+   * a bundle contract never goes untested behind a green skip.
    */
   protected function skipUnlessValid(ContentEntityInterface $entity): void {
-    $messages = [];
+    $product = [];
+    $project = [];
     foreach ($entity->validate() as $violation) {
+      $path = $violation->getPropertyPath();
       // Moderation transitions are access-checked against the current user,
       // which is anonymous in the test process; saving is unaffected.
-      if (str_starts_with($violation->getPropertyPath(), 'moderation_state')) {
+      if (str_starts_with($path, 'moderation_state')) {
         continue;
       }
-      $messages[] = ($violation->getPropertyPath() ? $violation->getPropertyPath() . ': ' : '') . strip_tags((string) $violation->getMessage());
+      $message = ($path ? "$path: " : '') . strip_tags((string) $violation->getMessage());
+      if (str_starts_with($path, 'field_icms_')) {
+        $product[] = $message;
+      }
+      else {
+        $project[] = $message;
+      }
     }
-    if (!$messages) {
+    if ($product) {
+      $this->fail(sprintf(
+        "Cannot create a valid %s '%s': a product field has no value (%s). The test has to provide it.",
+        $entity->getEntityTypeId(),
+        $entity->bundle(),
+        implode('; ', $product),
+      ));
+    }
+    if (!$project) {
       return;
     }
     $this->markTestSkipped(sprintf(
       "Cannot create a valid %s '%s' with the suite defaults (%s). Provide the project's values via \$settings['icms_test_suite']['content']['%s']['%s'].",
       $entity->getEntityTypeId(),
       $entity->bundle(),
-      implode('; ', $messages),
+      implode('; ', $project),
       $entity->getEntityTypeId(),
       $entity->bundle(),
     ));

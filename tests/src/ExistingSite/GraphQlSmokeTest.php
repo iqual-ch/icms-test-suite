@@ -33,21 +33,18 @@ class GraphQlSmokeTest extends IcmsGraphQlExistingSiteBase {
   public function testEntityCanBeQueried(): void {
     $node = $this->createIcmsNode();
 
+    // The metadata the caching contract needs: the node's own tags and the
+    // language context. Projects add contexts and tags of their own (Domain
+    // Access, tmgmt, …), so only the presence of these is asserted.
     $metadata = $this->defaultCacheMetaData();
     $metadata->addCacheableDependency($node);
     $metadata->addCacheableDependency($this->server);
-    $metadata->addCacheContexts([
-      'static:language:' . $node->language()->getId(),
-      // Added by the tmgmt module.
-      'url.query_args:key',
-    ]);
+    $metadata->addCacheContexts(['static:language:' . $node->language()->getId()]);
 
-    $this->assertResults(
-      $this->getQueryFromFile('query.get_icms_page_by_uuid.graphql'),
-      ['uuid' => $node->uuid()],
-      $this->getExpectedResults($node),
-      $metadata
-    );
+    $result = $this->getQueryResult($this->getQueryFromFile('query.get_icms_page_by_uuid.graphql'), ['uuid' => $node->uuid()]);
+    $this->assertSame([], $result->errors, 'GraphQL errors: ' . json_encode($result->errors));
+    $this->assertEquals($this->getExpectedResults($node), $result->data);
+    $this->assertResultMetadataContains($result, $metadata);
   }
 
   /**
