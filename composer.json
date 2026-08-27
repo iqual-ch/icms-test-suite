@@ -1,0 +1,24 @@
+{
+    "name": "iqual/icms-test-suite",
+    "description": "ICMS product test suite - PHPUnit/DTT tests asserting the ICMS contract in every client project.",
+    "type": "library",
+    "keywords": [
+        "ICMS"
+    ],
+    "license": [
+        "GPL-2.0-or-later"
+    ],
+    "require": {
+        "php": ">=8.3",
+        "drupal/core-dev": "^11",
+        "drupal/graphql": "^4",
+        "weitzman/drupal-test-traits": "^2.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Iqual\\IcmsTestSuite\\": "src/",
+            "Iqual\\IcmsTestSuite\\Tests\\": "tests/src/"
+        }
+    },
+    "version": "1.x-dev"
+}
