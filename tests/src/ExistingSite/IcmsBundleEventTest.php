@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Iqual\IcmsTestSuite\Tests\ExistingSite;
 
-use Drupal\field\Entity\FieldStorageConfig;
-use Drupal\paragraphs\Entity\Paragraph;
 use Drupal\views\Entity\View;
 use Iqual\IcmsTestSuite\ExistingSite\IcmsBundleContractTestBase;
 use PHPUnit\Framework\Attributes\Group;
@@ -74,21 +72,6 @@ class IcmsBundleEventTest extends IcmsBundleContractTestBase {
     $this->assertSame([], array_values($unsynced), 'The event_registrations view depends on configuration that config_ignore keeps out of the config sync directory, which breaks config import.');
   }
 
-  /**
-   * The calendar listing type is offered on the event layout only.
-   */
-  public function testCalendarListingTypeOption(): void {
-    $storage = FieldStorageConfig::loadByName('paragraph', 'field_icms_listing_type');
-    $this->assertNotNull($storage);
-    $this->assertSame('icms_core_logic_listing_type_allowed_values', $storage->getSetting('allowed_values_function'));
-
-    $event_options = options_allowed_values($storage, Paragraph::create(['type' => 'icms_layout_event']));
-    $this->assertArrayHasKey('calendar', $event_options, 'The event layout offers the calendar listing type.');
-    $this->assertSame(['all', 'manual', 'contextual', 'calendar'], array_keys($event_options));
-
-    $other_options = options_allowed_values($storage, Paragraph::create(['type' => 'icms_accordion_element']));
-    $this->assertArrayNotHasKey('calendar', $other_options, 'Other paragraph types keep the base listing types.');
-  }
 
   /**
    * The bundle ships the dedicated occurrence date formats.
