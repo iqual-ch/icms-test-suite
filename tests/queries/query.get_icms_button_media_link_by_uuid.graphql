@@ -1,0 +1,21 @@
+query buttonParagraphByUuid($uuid: String!) {
+  entityByUuid(entityType: PARAGRAPH, uuid: $uuid) {
+    ... on ParagraphIcmsButtonElement {
+      label: fieldIcmsLinkLabel
+      link: fieldIcmsLink {
+        uri {
+          path
+          ... on EntityCanonicalUrl {
+            entity {
+              ... on Media {
+                mediaFileUrl {
+                  path
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
