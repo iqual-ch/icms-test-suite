@@ -72,7 +72,6 @@ class IcmsBundleEventTest extends IcmsBundleContractTestBase {
     $this->assertSame([], array_values($unsynced), 'The event_registrations view depends on configuration that config_ignore keeps out of the config sync directory, which breaks config import.');
   }
 
-
   /**
    * The bundle ships the dedicated occurrence date formats.
    */
