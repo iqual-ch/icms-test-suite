@@ -137,6 +137,32 @@ class EditorialBackendTest extends IcmsExistingSiteBase {
   }
 
   /**
+   * Drupal's messages are part of the shelled content page after saving.
+   *
+   * Saving a node redirects to its canonical page, which the backend renders
+   * as the site shell for editors (the frontend in an iframe, ICMS-794). The
+   * status message must be on that page, where it floats above the frame
+   * (ICMS-801); the frame must not replace it.
+   */
+  public function testShelledPageShowsMessages(): void {
+    [$editor, $role, $node] = $this->loginEditorWithNode();
+    if (!\Drupal::hasService('icms_core_logic.site_shell')) {
+      $this->markTestSkipped('The site shell (icms_core_logic) is not available on this site.');
+    }
+    if (!$node->access('update', $editor)) {
+      $this->markTestSkipped("The editor role '{$role->id()}' may not edit {$node->bundle()} nodes.");
+    }
+
+    $this->drupalGet('/node/' . $node->id() . '/edit');
+    $this->getSession()->getPage()->pressButton('Save');
+    $this->assertSame(200, $this->getSession()->getStatusCode(), 'Saving the node lands on a page. URL: ' . $this->getSession()->getCurrentUrl());
+
+    $page = $this->getSession()->getPage();
+    $this->assertNotNull($page->find('css', '.icms-site-shell'), 'After saving, the editor sees the node in the site shell. URL: ' . $this->getSession()->getCurrentUrl());
+    $this->assertNotNull($page->find('css', '.region-highlighted .messages--status'), 'The status message of the save is part of the shelled page.');
+  }
+
+  /**
    * Logs in as a user with the site's editor role, owning a blökkli page.
    *
    * @return array{\Drupal\user\UserInterface, \Drupal\user\RoleInterface, \Drupal\node\NodeInterface}
