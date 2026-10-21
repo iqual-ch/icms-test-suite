@@ -20,5 +20,5 @@
             "Iqual\\IcmsTestSuite\\Tests\\": "tests/src/"
         }
     },
-    "version": "1.6.2-rc.2"
+    "version": "1.x-dev"
 }
