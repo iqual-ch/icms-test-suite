@@ -9,6 +9,7 @@ use Drupal\icms_core_logic\BackendDomain;
 use Iqual\IcmsTestSuite\ExistingSite\IcmsExistingSiteBase;
 use PHPUnit\Framework\Attributes\Group;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Tests that clients cannot forge the host Drupal generates URLs for.
@@ -102,8 +103,7 @@ class ForwardedHeadersTest extends IcmsExistingSiteBase {
    * Returns the frontend URL of the backend domain the tests run against.
    */
   private function getFrontendUrl(): string {
-    $prefix = '://' . BackendDomain::SUBDOMAIN . '.';
-    return str_contains($this->baseUrl, $prefix) ? str_replace($prefix, '://', $this->baseUrl) : '';
+    return (string) \Drupal::service('icms_core_logic.backend_domain')->getFrontendUrl(Request::create($this->baseUrl));
   }
 
   /**
