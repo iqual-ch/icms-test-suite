@@ -154,7 +154,8 @@ class EditorialBackendTest extends IcmsExistingSiteBase {
     }
 
     $this->drupalGet('/node/' . $node->id() . '/edit');
-    $this->getSession()->getPage()->pressButton('Save');
+    // By id, not by label: the button text is translated ("Speichern").
+    $this->getSession()->getPage()->pressButton('edit-submit');
     $this->assertSame(200, $this->getSession()->getStatusCode(), 'Saving the node lands on a page. URL: ' . $this->getSession()->getCurrentUrl());
 
     $page = $this->getSession()->getPage();

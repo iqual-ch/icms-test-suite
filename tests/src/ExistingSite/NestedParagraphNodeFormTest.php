@@ -55,7 +55,8 @@ class NestedParagraphNodeFormTest extends IcmsExistingSiteBase {
     $this->fillField('[field_icms_title][0][value]', 'Nested test title');
     $this->fillField('[field_icms_buttons][0][subform][field_icms_link_label][0][value]', 'Nested button label');
     $this->fillField('[field_icms_buttons][0][subform][field_icms_link][0][uri]', 'https://example.com');
-    $page->pressButton('Save');
+    // By id, not by label: the button text is translated ("Speichern").
+    $page->pressButton('edit-submit');
 
     $messages = array_map(static fn ($e) => trim($e->getText()), $page->findAll('css', '[data-drupal-messages] .messages, .messages'));
     $errors = $page->findAll('css', '.messages--error, [role="alert"]');
