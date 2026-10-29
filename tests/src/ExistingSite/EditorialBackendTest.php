@@ -45,10 +45,70 @@ class EditorialBackendTest extends IcmsExistingSiteBase {
     ]);
     $this->assertNotEmpty($routes, "The editor role '{$role->id()}' can access none of the editorial routes.");
 
+    $navigation = $this->hasBackendNavigation($editor);
     foreach (array_keys($routes) as $path) {
       $this->drupalGet($path);
       $this->assertSame(200, $this->getSession()->getStatusCode(), "The editorial backend route '$path' must respond with HTTP 200 for role '{$role->id()}'.");
+      if ($navigation) {
+        $this->assertNotNull($this->getSession()->getPage()->find('css', '.admin-toolbar'), "The editorial backend route '$path' must render the navigation sidebar for role '{$role->id()}'.");
+      }
     }
+  }
+
+  /**
+   * Masquerading as an editor lands in the backend with its navigation.
+   *
+   * An admin switches to an editor from the people overview to see the site
+   * as they do: the backend must keep its navigation (the site shell, ICMS-831)
+   * and offer the way back, which core navigation lists with the user links.
+   */
+  public function testMasqueradeAsEditorKeepsTheNavigation(): void {
+    if (!\Drupal::moduleHandler()->moduleExists('masquerade')) {
+      $this->markTestSkipped('Masquerade is not installed on this site.');
+    }
+    $roles = $this->getEditorRoles();
+    if (!$roles) {
+      $this->markTestSkipped('No editor role (non-admin role with "create paragraphs blokkli edit state") exists on this site.');
+    }
+    $role = reset($roles);
+    assert($role instanceof RoleInterface);
+    $editor = $this->createUser();
+    assert($editor instanceof UserInterface);
+    $editor->addRole($role->id());
+    $editor->save();
+    if (!$this->hasBackendNavigation($editor)) {
+      $this->markTestSkipped("The editor role '{$role->id()}' has no backend navigation on this site.");
+    }
+
+    $admin = $this->createUser(['administer users', 'masquerade as authenticated', 'masquerade as ' . $role->id()]);
+    assert($admin instanceof UserInterface);
+    $this->drupalLogin($admin);
+    // The operation link carries a CSRF token bound to the browser's session.
+    $this->drupalGet('/admin/people', ['query' => ['user' => $editor->getAccountName()]]);
+    $link = $this->getSession()->getPage()->find('css', 'a[href*="/user/' . $editor->id() . '/masquerade"]');
+    $this->assertNotNull($link, 'The people overview offers to masquerade as the editor.');
+    $link->click();
+
+    $page = $this->getSession()->getPage();
+    $this->assertNotNull($page->find('css', '.admin-toolbar'), 'While masquerading as an editor, the backend renders the navigation sidebar. URL: ' . $this->getSession()->getCurrentUrl());
+    $unmasquerade = $page->find('css', '.admin-toolbar a[href*="/unmasquerade"]');
+    $this->assertNotNull($unmasquerade, 'The navigation offers "Unmasquerade" while masquerading.');
+
+    $unmasquerade->click();
+    $this->drupalGet('/admin/people');
+    $this->assertSame(200, $this->getSession()->getStatusCode(), 'After unmasquerading, the admin is back.');
+    $this->assertNull($this->getSession()->getPage()->find('css', 'a[href*="/unmasquerade"]'), 'Without masquerading, there is no "Unmasquerade" link.');
+  }
+
+  /**
+   * Whether core navigation is the backend chrome an account should see.
+   *
+   * Navigation replaced the toolbar; a role kept on "access toolbar" alone
+   * gets the site shell without any navigation.
+   */
+  protected function hasBackendNavigation(UserInterface $account): bool {
+    return \Drupal::moduleHandler()->moduleExists('navigation')
+      && ($account->hasPermission('access navigation') || $account->hasPermission('access toolbar'));
   }
 
   /**
