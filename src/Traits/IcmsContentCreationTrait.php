@@ -141,9 +141,10 @@ trait IcmsContentCreationTrait {
    * field) skips the test and names the setting that provides the value. A
    * violation on a product field (`field_icms_*`) is a gap in the suite — the
    * test creating the entity has to supply the value — and fails instead, so
-   * a bundle contract never goes untested behind a green skip.
+   * a bundle contract never goes untested behind a green skip. Tests that
+   * don't depend on product fields can ignore them.
    */
-  protected function skipUnlessValid(ContentEntityInterface $entity): void {
+  protected function skipUnlessValid(ContentEntityInterface $entity, bool $ignore_product_fields = FALSE): void {
     $product = [];
     $project = [];
     foreach ($entity->validate() as $violation) {
@@ -155,7 +156,9 @@ trait IcmsContentCreationTrait {
       }
       $message = ($path ? "$path: " : '') . strip_tags((string) $violation->getMessage());
       if (str_starts_with($path, 'field_icms_')) {
-        $product[] = $message;
+        if (!$ignore_product_fields) {
+          $product[] = $message;
+        }
       }
       else {
         $project[] = $message;
