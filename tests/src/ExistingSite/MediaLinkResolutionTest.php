@@ -9,6 +9,7 @@ use Drupal\media\Entity\Media;
 use Drupal\media\MediaInterface;
 use Iqual\IcmsTestSuite\ExistingSite\IcmsGraphQlExistingSiteBase;
 use PHPUnit\Framework\Attributes\Group;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Tests that media document links resolve to the file URL over GraphQL.
@@ -18,7 +19,8 @@ use PHPUnit\Framework\Attributes\Group;
  * `EntityCanonicalUrl` with a `mediaFileUrl`. Links stored differently
  * (e.g. `internal:/media/N`) silently resolve to a URL type without an
  * entity, and the frontend falls back to the unrouted media path. This
- * locks in the backend half of that contract.
+ * locks in the backend half of that contract, and that the media path itself
+ * serves the file on the frontend domain.
  */
 #[Group('icms')]
 class MediaLinkResolutionTest extends IcmsGraphQlExistingSiteBase {
@@ -74,6 +76,28 @@ class MediaLinkResolutionTest extends IcmsGraphQlExistingSiteBase {
       $uri['entity']['mediaFileUrl']['path'] ?? NULL,
       'The media link resolves to the document file URL.',
     );
+  }
+
+  /**
+   * The media path (stored document links) serves the file on the frontend.
+   */
+  public function testMediaPathServesFileOnFrontend(): void {
+    $media = $this->createDocumentMedia();
+    $frontend = \Drupal::service('icms_core_logic.backend_domain')->getFrontendUrl(Request::create($this->baseUrl));
+    $url = rtrim((string) $frontend, '/') . $media->toUrl()->toString();
+
+    $options = ['http_errors' => FALSE, 'verify' => FALSE];
+
+    $response = \Drupal::httpClient()->get($url, $options);
+    $this->assertSame(200, $response->getStatusCode(), $url);
+    $this->assertStringStartsWith('text/plain', $response->getHeaderLine('Content-Type'), $url);
+    $this->assertSame('ICMS test document.', (string) $response->getBody());
+    $this->assertFalse($response->hasHeader('X-Robots-Tag'), 'Documents are indexable.');
+
+    // `?dl=1` forces a download.
+    $response = \Drupal::httpClient()->get("$url?dl=1", $options);
+    $this->assertStringStartsWith('attachment', $response->getHeaderLine('Content-Disposition'), "$url?dl=1");
+    $this->assertSame('ICMS test document.', (string) $response->getBody());
   }
 
   /**
