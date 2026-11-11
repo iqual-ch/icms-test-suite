@@ -6,6 +6,7 @@ namespace Iqual\IcmsTestSuite\Tests\ExistingSite;
 
 use Drupal\node\Entity\Node;
 use Drupal\node\Entity\NodeType;
+use Drupal\linkit\ProfileInterface;
 use Drupal\user\RoleInterface;
 use Iqual\IcmsTestSuite\ExistingSite\IcmsExistingSiteBase;
 use PHPUnit\Framework\Attributes\Group;
@@ -42,7 +43,8 @@ class LinkFieldAutocompleteTest extends IcmsExistingSiteBase {
 
     $bundles = $matcher->getConfiguration()['settings']['bundles'] ?? [];
     $types = $bundles && $bundles !== ['icms_page' => 'icms_page'] ? array_keys($bundles) : array_keys(NodeType::loadMultiple());
-    // A shared token finds all test nodes with one lookup.
+    // A shared token finds all test nodes with one lookup (see below for
+    // generated labels).
     $token = $this->getRandomGenerator()->name(12);
     $expected = [];
     foreach ($types as $type) {
@@ -58,11 +60,29 @@ class LinkFieldAutocompleteTest extends IcmsExistingSiteBase {
     $editor->save();
     $this->setCurrentUser($editor);
 
-    $suggestions = \Drupal::service('linkit.suggestion_manager')->getSuggestions($profile, $token)->getSuggestions();
-    $labels = array_map(static fn ($suggestion) => $suggestion->getLabel(), $suggestions);
+    // A generated label (auto_entitylabel, e.g. icms_people) replaces the
+    // title with the token: such a node is looked up by its own label.
+    $searches = [];
     foreach ($expected as $label) {
-      $this->assertContains($label, $labels, "The link field autocomplete must find '$label' for role '{$role->id()}'.");
+      $searches[str_contains($label, $token) ? $token : $label][] = $label;
     }
+    foreach ($searches as $search => $labels_expected) {
+      $labels = $this->getSuggestionLabels($profile, (string) $search);
+      foreach ($labels_expected as $label) {
+        $this->assertContains($label, $labels, "The link field autocomplete must find '$label' for role '{$role->id()}'.");
+      }
+    }
+  }
+
+  /**
+   * Returns the labels the linkit profile suggests for a search string.
+   *
+   * @return string[]
+   *   The suggestion labels.
+   */
+  protected function getSuggestionLabels(ProfileInterface $profile, string $search): array {
+    $suggestions = \Drupal::service('linkit.suggestion_manager')->getSuggestions($profile, $search)->getSuggestions();
+    return array_map(static fn ($suggestion) => $suggestion->getLabel(), $suggestions);
   }
 
   /**
