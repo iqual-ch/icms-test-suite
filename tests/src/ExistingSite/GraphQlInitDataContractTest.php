@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Iqual\IcmsTestSuite\Tests\ExistingSite;
 
+use Drupal\Core\Database\Connection;
 use Drupal\system\Entity\Menu;
 use Iqual\IcmsTestSuite\ExistingSite\IcmsExistingSiteBase;
 use PHPUnit\Framework\Attributes\Group;
@@ -40,6 +41,44 @@ class GraphQlInitDataContractTest extends IcmsExistingSiteBase {
   ];
 
   /**
+   * Key and context of the text the query reads from the texts loader.
+   */
+  protected const SMOKE_TEXT_KEY = 'homepage_link';
+  protected const SMOKE_TEXT_CONTEXT = 'error_page';
+
+  /**
+   * The smoke text's database rows before the query; NULL without texts.
+   *
+   * @var array[]|null
+   */
+  protected ?array $smokeTextRows = NULL;
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function tearDown(): void {
+    if ($this->smokeTextRows === NULL) {
+      parent::tearDown();
+      return;
+    }
+
+    // getText() creates a missing text with its default (drupal/texts), in
+    // the database of the site under test. Remove one the query created; an
+    // existing text is left alone.
+    if (!$this->smokeTextRows) {
+      $text = \Drupal::entityTypeManager()->getStorage('texts')->loadByKey(static::SMOKE_TEXT_KEY, static::SMOKE_TEXT_CONTEXT);
+      if ($text) {
+        $this->markEntityForCleanup($text);
+      }
+    }
+    // The kernel is shut down after the cleanup, so keep the connection.
+    $database = \Drupal::database();
+    parent::tearDown();
+
+    $this->assertSame($this->smokeTextRows, $this->loadSmokeTextRows($database), 'The texts query leaves the texts as it found them.');
+  }
+
+  /**
    * The initData response shape is intact for every language.
    */
   public function testInitDataShapeIsIntactForEveryLanguage(): void {
@@ -49,6 +88,9 @@ class GraphQlInitDataContractTest extends IcmsExistingSiteBase {
       && \Drupal::entityTypeManager()->getStorage('translatable_config_pages_type')->load('global') !== NULL;
     $extensions = $this->getGraphqlServer()->get('schema_configuration')['core_composable']['extensions'] ?? [];
     $texts = !empty($extensions['texts']);
+    if ($texts) {
+      $this->smokeTextRows = $this->loadSmokeTextRows(\Drupal::database());
+    }
 
     foreach ($this->getSiteLangcodes() as $langcode) {
       $data = $this->graphqlQuery($this->buildInitDataQuery($menus, $globalConfig, $texts), [], $langcode);
@@ -98,7 +140,7 @@ class GraphQlInitDataContractTest extends IcmsExistingSiteBase {
       $fields[] = '  globalConfig { __typename }';
     }
     if ($texts) {
-      $fields[] = '  translations: textsLoader { smokeText: getText(key: "homepage_link", context: "error_page", default: "Homepage") }';
+      $fields[] = sprintf('  translations: textsLoader { smokeText: getText(key: "%s", context: "%s", default: "Homepage") }', static::SMOKE_TEXT_KEY, static::SMOKE_TEXT_CONTEXT);
     }
     $fields = implode("\n", $fields);
 
@@ -114,6 +156,23 @@ fragment menuLinkTree on MenuLinkTreeElement {
   }
 }
 GQL;
+  }
+
+  /**
+   * Loads the smoke text's rows in every language, straight from the table.
+   *
+   * @return array[]
+   *   Rows with the id, language, translation and plural flag.
+   */
+  protected function loadSmokeTextRows(Connection $database): array {
+    return $database->select('texts_field_data', 't')
+      ->fields('t', ['id', 'langcode', 'translation', 'plural'])
+      ->condition('t.key', static::SMOKE_TEXT_KEY)
+      ->condition('t.context', static::SMOKE_TEXT_CONTEXT)
+      ->orderBy('t.id')
+      ->orderBy('t.langcode')
+      ->execute()
+      ->fetchAll(\PDO::FETCH_ASSOC);
   }
 
 }
